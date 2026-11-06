@@ -99,7 +99,7 @@ fun OcrScreen(
                 onToast("Could not open the page")
                 return@launch
             }
-            val result = OcrEngine.recognize(bmp)
+            val result = OcrEngine.recognize(bmp).text
             text = result
             busy = false
             if (result.isBlank()) onToast("No text found on this page")
@@ -249,25 +249,21 @@ fun OcrScreen(
                         onToast("Text copied")
                     }
                     SmallAction("Export TXT", "text_to_pdf") {
-                        val out = with(context) {
-                            FylioStore.uniqueFile(
-                                FylioStore.exportsDir(this),
-                                doc.nameWithoutExtension + "_ocr",
-                                "txt"
-                            )
-                        }
+                        val out = FylioStore.uniqueFile(
+                            FylioStore.exportsDir(context),
+                            doc.nameWithoutExtension + "_ocr",
+                            "txt"
+                        )
                         runCatching { out.writeText(text) }
                         onExported(out)
                     }
                     SmallAction("Export PDF", "pdf") {
-                        val out = with(context) {
-                            FylioStore.uniqueFile(
-                                FylioStore.exportsDir(this),
-                                doc.nameWithoutExtension + "_ocr",
-                                "pdf"
-                            )
-                        }
-                        PdfEngine.textToPdf(text.ifBlank { "(no text)" }, "OCR · ${doc.name}", out)
+                        val out = FylioStore.uniqueFile(
+                            FylioStore.exportsDir(context),
+                            doc.nameWithoutExtension + "_ocr",
+                            "pdf"
+                        )
+                        PdfEngine.textToPdf(text.ifBlank { "(no text)" }, out, "OCR · ${doc.name}")
                         onExported(out)
                     }
                 }

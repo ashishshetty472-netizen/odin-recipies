@@ -23,6 +23,63 @@ object FileOps {
         context.startActivity(Intent.createChooser(intent, "Share ${file.name}"))
     }
 
+    /**
+     * Hands the file to the system print service. Android's print framework renders the
+     * PDF itself, so this works for PDFs, images and text alike.
+     */
+    fun printFile(context: Context, file: File) {
+        runCatching {
+            val manager = context.getSystemService(Context.PRINT_SERVICE) as? android.print.PrintManager
+            if (manager != null) {
+                val adapter = PrintAdapter(context, file)
+                manager.print(file.name, adapter, android.print.PrintAttributes.Builder().build())
+                return
+            }
+            share(context, file)
+        }.onFailure { share(context, file) }
+    }
+
+    private class PrintAdapter(
+        private val context: Context,
+        private val file: File
+    ) : android.print.PrintDocumentAdapter() {
+        override fun onLayout(
+            oldAttributes: android.print.PrintAttributes?,
+            newAttributes: android.print.PrintAttributes?,
+            cancellationSignal: android.os.CancellationSignal?,
+            callback: LayoutResultCallback?,
+            extras: android.os.Bundle?
+        ) {
+            if (cancellationSignal?.isCanceled == true) {
+                callback?.onLayoutCancelled()
+                return
+            }
+            val info = android.print.PrintDocumentInfo.Builder(file.name)
+                .setContentType(android.print.PrintDocumentInfo.CONTENT_TYPE_DOCUMENT)
+                .setPageCount(android.print.PrintDocumentInfo.PAGE_COUNT_UNKNOWN)
+                .build()
+            callback?.onLayoutFinished(info, true)
+        }
+
+        override fun onWrite(
+            pages: Array<out android.print.PageRange>?,
+            destination: android.os.ParcelFileDescriptor?,
+            cancellationSignal: android.os.CancellationSignal?,
+            callback: WriteResultCallback?
+        ) {
+            try {
+                context.contentResolver.openInputStream(uriFor(context, file))?.use { input ->
+                    java.io.FileOutputStream(destination?.fileDescriptor).use { out ->
+                        input.copyTo(out)
+                    }
+                }
+                callback?.onWriteFinished(arrayOf(android.print.PageRange.ALL_PAGES))
+            } catch (t: Throwable) {
+                callback?.onWriteFailed(t.message)
+            }
+        }
+    }
+
     fun openWith(context: Context, file: File) {
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uriFor(context, file), mimeType(file.name))

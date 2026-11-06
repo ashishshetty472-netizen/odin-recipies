@@ -223,7 +223,7 @@ fun FylioCard(
     modifier: Modifier = Modifier,
     padding: Dp = 16.dp,
     onClick: (() -> Unit)? = null,
-    content: @Composable ColumnScopeContent
+    content: ColumnScopeContent
 ) {
     val surfaces = LocalFylioSurfaces.current
     val base = modifier.fillMaxWidth()

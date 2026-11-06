@@ -140,14 +140,15 @@ fun ScannerScreen(
             ImageCapture.OutputFileOptions.Builder(target).build(),
             executor,
             object : ImageCapture.OnImageSavedCallback {
-                override fun onImageSaved(output: ImageCapture.OutputFileResults) =
+                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     mainHandler.post {
                         if (target.length() > 0) pages.add(ScanPage(target))
                         busy = false
                     }
+                }
 
-                override fun onError(exception: ImageCaptureException) = mainHandler.post {
-                    target.delete(); busy = false
+                override fun onError(exception: ImageCaptureException) {
+                    mainHandler.post { target.delete(); busy = false }
                 }
             }
         )

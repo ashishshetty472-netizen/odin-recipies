@@ -16,19 +16,32 @@ import androidx.compose.ui.unit.sp
  */
 private val FylioFont = FontFamily.SansSerif
 
+private fun style(
+    size: Int,
+    weight: FontWeight,
+    tracking: Float = 0f,
+    leading: Int = 0
+): TextStyle = TextStyle(
+    fontFamily = FylioFont,
+    fontWeight = weight,
+    fontSize = size.sp,
+    letterSpacing = tracking.sp,
+    lineHeight = (if (leading > 0) leading else (size * 1.35f).toInt()).sp
+)
+
 val FylioTypography = Typography(
-    displaySmall = TextStyle(FylioFont, FontWeight.Bold, 30.sp, letterSpacing = (-0.6).sp),
-    headlineMedium = TextStyle(FylioFont, FontWeight.Bold, 26.sp, letterSpacing = (-0.5).sp),
-    headlineSmall = TextStyle(FylioFont, FontWeight.SemiBold, 22.sp, letterSpacing = (-0.3).sp),
-    titleLarge = TextStyle(FylioFont, FontWeight.SemiBold, 18.sp),
-    titleMedium = TextStyle(FylioFont, FontWeight.SemiBold, 15.sp),
-    titleSmall = TextStyle(FylioFont, FontWeight.Medium, 13.sp),
-    bodyLarge = TextStyle(FylioFont, FontWeight.Normal, 15.sp),
-    bodyMedium = TextStyle(FylioFont, FontWeight.Normal, 13.sp),
-    bodySmall = TextStyle(FylioFont, FontWeight.Normal, 12.sp),
-    labelLarge = TextStyle(FylioFont, FontWeight.SemiBold, 13.sp),
-    labelMedium = TextStyle(FylioFont, FontWeight.Medium, 11.sp),
-    labelSmall = TextStyle(FylioFont, FontWeight.Medium, 10.sp, letterSpacing = 0.2.sp)
+    displaySmall = style(30, FontWeight.Bold, -0.6f, 36),
+    headlineMedium = style(26, FontWeight.Bold, -0.5f, 32),
+    headlineSmall = style(22, FontWeight.SemiBold, -0.3f, 28),
+    titleLarge = style(18, FontWeight.SemiBold, 0f, 24),
+    titleMedium = style(15, FontWeight.SemiBold, 0f, 20),
+    titleSmall = style(13, FontWeight.Medium, 0f, 18),
+    bodyLarge = style(15, FontWeight.Normal, 0f, 21),
+    bodyMedium = style(13, FontWeight.Normal, 0f, 18),
+    bodySmall = style(12, FontWeight.Normal, 0f, 17),
+    labelLarge = style(13, FontWeight.SemiBold, 0f, 17),
+    labelMedium = style(11, FontWeight.Medium, 0.1f, 15),
+    labelSmall = style(10, FontWeight.Medium, 0.2f, 13)
 )
 
 val FylioShapes = Shapes(

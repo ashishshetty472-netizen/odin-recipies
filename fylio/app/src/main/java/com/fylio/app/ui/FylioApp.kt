@@ -51,7 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.fylio.app.build.BuildInfo
+import com.fylio.app.meta.BuildInfo
 import com.fylio.app.core.image.ImageEngine
 import com.fylio.app.core.office.OfficeKind
 import com.fylio.app.core.office.OfficeParser

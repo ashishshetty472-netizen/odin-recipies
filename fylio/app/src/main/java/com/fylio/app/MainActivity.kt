@@ -35,10 +35,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        incomingUri = intent?.incomingStream()
+        incomingUri = intent.incomingStream()
     }
 
     /** "Open with Fylio" support: copy the incoming stream into the documents folder. */

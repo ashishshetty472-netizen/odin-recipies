@@ -79,15 +79,7 @@ fun SettingsScreen(
                     .padding(16.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(RoundedCornerShape(15.dp))
-                            .background(FylioSurfaceDarkElevated),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        FylioToolIcon("about", size = 32.dp)
-                    }
+                    FylioToolIcon("about", size = 52.dp)
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text("Fylio", style = MaterialTheme.typography.titleLarge, color = FylioTextPrimary)

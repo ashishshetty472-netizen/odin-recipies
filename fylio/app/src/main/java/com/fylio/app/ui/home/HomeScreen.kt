@@ -257,15 +257,7 @@ private fun MainToolCard(
             .padding(vertical = 12.dp, horizontal = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            modifier = Modifier
-                .size(46.dp)
-                .clip(RoundedCornerShape(13.dp))
-                .background(FylioSurfaceDarkElevated),
-            contentAlignment = Alignment.Center
-        ) {
-            FylioToolIcon(tool.icon, size = 30.dp)
-        }
+        FylioToolIcon(tool.icon, size = 46.dp)
         Spacer(Modifier.height(7.dp))
         Text(
             text = tool.title,

@@ -102,15 +102,7 @@ fun ToolkitScreen(
                             .padding(16.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(FylioSurfaceDarkElevated),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                FylioToolIcon(tool.icon, size = 32.dp)
-                            }
+                            FylioToolIcon(tool.icon, size = 48.dp)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(

@@ -81,15 +81,12 @@ fun FylioToolTile(
             .padding(vertical = 4.dp, horizontal = 2.dp)
     ) {
         Box(
-            modifier = Modifier
-                .size(tileSize)
-                .clip(RoundedCornerShape(tileSize * 0.26f))
-                .background(FylioSurfaceDarkElevated),
+            modifier = Modifier.size(tileSize),
             contentAlignment = Alignment.Center
         ) {
             FylioToolIcon(
                 iconId = tool.icon,
-                size = tileSize * 0.62f
+                size = tileSize
             )
             if (badge != null) {
                 Box(
@@ -127,15 +124,12 @@ fun FylioFileBadge(
     size: Dp = 44.dp
 ) {
     Box(
-        modifier = Modifier
-            .size(size)
-            .clip(RoundedCornerShape(size * 0.28f))
-            .background(FylioSurfaceDarkElevated),
+        modifier = Modifier.size(size),
         contentAlignment = Alignment.Center
     ) {
         FylioToolIcon(
             iconId = FylioTools.iconForFile(item),
-            size = size * 0.68f
+            size = size
         )
     }
 }

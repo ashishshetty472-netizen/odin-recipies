@@ -1,0 +1,3 @@
+
+# local APK downloads (built by CI, published to the apk-latest branch)
+fylio/apk/*.apk

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="fylio_bg_dark">#151922</color>
+    <color name="fylio_electric_blue">#2F80FF</color>
+    <!-- Adaptive-icon background: the logo's own blue so the mask edge blends in -->
+    <color name="ic_launcher_background">#2F8CF5</color>
+</resources>

@@ -104,3 +104,4 @@ object XlsxWriter {
 <cellStyleXfs count="1"><xf/></cellStyleXfs>
 <cellXfs count="1"><xf xfId="0"/></cellXfs>
 </styleSheet>"""
+}

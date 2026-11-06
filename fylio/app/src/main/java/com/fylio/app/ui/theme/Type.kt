@@ -9,10 +9,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/**
+/*
  * Plus Jakarta Sans / Inter are not bundled (no font binaries in the repo), so the
- * system sans-serif is used — same metrics family, zero APK weight. Swap in
- * res/font/*.ttf and point FontFamily here to change it.
+ * system sans-serif is used - same metrics family, zero APK weight. Drop TTFs into
+ * res/font and point FylioFont at a FontFamily(Font(R.font.x)) to change it.
  */
 private val FylioFont = FontFamily.SansSerif
 

@@ -92,8 +92,11 @@ jobs:
         if: success()
         run: |
           set -euo pipefail
-          cd out
-          for f in *.apk; do sha256sum "$f" > "$f.sha256"; done
+          # Stage APKs + checksums + a small index outside the git worktree.
+          STAGE="$RUNNER_TEMP/apk-stage"
+          rm -rf "$STAGE" && mkdir -p "$STAGE"
+          cp out/*.apk "$STAGE"/
+          ( cd "$STAGE" && for f in *.apk; do sha256sum "$f" > "$f.sha256"; done )
           {
             echo "# Fylio APK builds"
             echo
@@ -101,21 +104,20 @@ jobs:
             echo
             echo "| File | Size | SHA-256 |"
             echo "| --- | --- | --- |"
-            for f in *.apk; do
-              printf '| `%s` | %s | `%s` |\n' "$f" "$(du -h "$f" | cut -f1)" "$(cut -d' ' -f1 "$f.sha256")"
+            for f in "$STAGE"/*.apk; do
+              b="$(basename "$f")"
+              printf '| `%s` | %s | `%s` |\n' "$b" "$(du -h "$f" | cut -f1)" "$(cut -d' ' -f1 "$STAGE/$b.sha256")"
             done
             echo
             echo "Install with: \`adb install -r app-release.apk\`"
-          } > README.md
-          cd ..
+          } > "$STAGE/README.md"
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout --orphan apk-latest
-          git rm -rf --cached . > /dev/null
-          # Flatten to the branch root so raw download URLs stay short:
-          # https://raw.githubusercontent.com/<owner>/<repo>/apk-latest/app-release.apk
-          rm -rf out && mkdir -p .apk && cp ../out/*.apk ../out/*.sha256 ../out/README.md .apk/ 2>/dev/null || true
-          mv .apk/* . && rmdir .apk
+          git rm -rf --cached . > /dev/null 2>&1 || true
+          # Artifacts live at the branch root so raw URLs stay short.
+          cp "$STAGE"/* .
           git add -f *.apk *.sha256 README.md
           git commit -m "APK build ${GITHUB_SHA::7} (${GITHUB_REF_NAME})"
           git push --force origin apk-latest

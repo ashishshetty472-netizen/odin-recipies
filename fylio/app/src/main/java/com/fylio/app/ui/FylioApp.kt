@@ -52,12 +52,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fylio.app.meta.BuildInfo
-import com.fylio.app.core.image.ImageEngine
 import com.fylio.app.core.office.OfficeKind
 import com.fylio.app.core.office.OfficeParser
 import com.fylio.app.core.pdf.PdfEngine
 import com.fylio.app.data.DocType
-import com.fylio.app.data.FylioStore
 import com.fylio.app.data.db.DocumentEntity
 import com.fylio.app.ui.components.FylioIcon
 import com.fylio.app.ui.screens.FilesScreen
@@ -65,8 +63,7 @@ import com.fylio.app.ui.screens.HomeScreen
 import com.fylio.app.ui.screens.ReaderSettings
 import com.fylio.app.ui.screens.SettingsScreen
 import com.fylio.app.ui.screens.ToolsScreen
-import com.fylio.app.ui.scanner.ScannerScreen
-import com.fylio.app.ui.scanner.ScanReviewScreen
+import com.fylio.app.ui.scanner.ScanFlowScreen
 import com.fylio.app.ui.tools.AnnotateScreen
 import com.fylio.app.ui.tools.OcrScreen
 import com.fylio.app.ui.tools.ToolRunner
@@ -93,7 +90,6 @@ private sealed interface Route {
     data class Reader(val uri: String) : Route
     data class Tool(val toolId: String) : Route
     data object Scanner : Route
-    data class ScanReview(val pages: List<String>) : Route
     data class Annotate(val uri: String, val page: Int) : Route
     data object Ocr : Route
     data object About : Route
@@ -128,26 +124,6 @@ fun FylioApp(
     val importPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
     ) { uris -> viewModel.importUris(uris) }
-
-    val galleryPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenMultipleDocuments()
-    ) { uris ->
-        if (uris.isNotEmpty()) {
-            scope.launch {
-                busy = "Importing images"
-                val files = withContext(Dispatchers.IO) {
-                    uris.mapNotNull { uri ->
-                        ImageEngine.decode(context, uri, 2600)?.let { bmp ->
-                            val target = FylioStore.newScanFile(context, "Image")
-                            ImageEngine.saveJpeg(bmp, target, 94)
-                        }
-                    }
-                }
-                busy = null
-                if (files.isNotEmpty()) route = Route.ScanReview(files.map { it.absolutePath })
-            }
-        }
-    }
 
     /** Opens the reader for a document URI, materialising SAF files when needed. */
     fun openDocument(entity: DocumentEntity) {
@@ -282,7 +258,15 @@ fun FylioApp(
 
                         is Route.Tool -> {
                             val spec = ToolSpec.all.firstOrNull { it.id == current.toolId }
-                            if (spec == null) {
+                            if (current.toolId in SCAN_FLOW_TOOLS) {
+                                ScanFlowScreen(
+                                    onExit = { route = Route.Tabs },
+                                    onSaved = { file, note ->
+                                        viewModel.registerLocalFile(file, note)
+                                        route = Route.Reader(Uri.fromFile(file).toString())
+                                    }
+                                )
+                            } else if (spec == null) {
                                 MissingTool(onBack = { route = Route.Tabs })
                             } else {
                                 ToolRunner(
@@ -304,18 +288,10 @@ fun FylioApp(
                             }
                         }
 
-                        Route.Scanner -> ScannerScreen(
-                            onBack = { route = Route.Tabs },
-                            onFinish = { pages ->
-                                route = Route.ScanReview(pages.map { it.absolutePath })
-                            }
-                        )
-
-                        is Route.ScanReview -> ScanReviewScreen(
-                            pages = current.pages,
-                            onBack = { route = Route.Scanner },
-                            onSaved = { file ->
-                                viewModel.registerLocalFile(file, "Saved ${file.name}")
+                        Route.Scanner -> ScanFlowScreen(
+                            onExit = { route = Route.Tabs },
+                            onSaved = { file, note ->
+                                viewModel.registerLocalFile(file, note)
                                 route = Route.Reader(Uri.fromFile(file).toString())
                             }
                         )
@@ -583,6 +559,9 @@ private fun AboutScreen(onBack: () -> Unit) {
         }
     }
 }
+
+/** Tool ids that open the camera-based scan pipeline instead of the generic runner. */
+private val SCAN_FLOW_TOOLS = setOf("scanner", "camera_to_pdf", "create_pdf")
 
 /** Time-aware greeting for the home header. */
 private fun greeting(): String {

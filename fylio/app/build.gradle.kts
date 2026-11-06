@@ -81,6 +81,9 @@ dependencies {
     // On-device OCR (bundled model, works offline)
     implementation("com.google.mlkit:text-recognition:16.0.0")
 
+    // EXIF orientation for gallery/camera imports
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
+
     // DocumentFile for SAF folder work
     implementation("androidx.documentfile:documentfile:1.0.1")
 

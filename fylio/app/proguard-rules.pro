@@ -1,0 +1,2 @@
+-dontwarn org.bouncycastle.**
+-keep class com.fylio.app.** { *; }

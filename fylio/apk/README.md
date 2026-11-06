@@ -1,18 +1,16 @@
 # Fylio APK downloads
 
-Build artifacts land here for quick download from the workspace. They are **not** tracked
-in this branch (they would add ~30 MB to the repo and they are reproducible):
+Current build: icon-sheet release (88 tool icons from the supplied sheet + logo launcher icon).
 
-- `app-release.apk` — 12 MB, minify off, signed with the auto-generated debug key, installs
-  on any device via sideload or `adb install -r app-release.apk`.
-- `app-debug.apk` — 18 MB, debug build with extra metadata.
+- `app-release.apk` — 13 MB, minify off, signed with the auto-generated debug key.
+  Installs on any device via sideload or `adb install -r app-release.apk`.
+- `app-debug.apk` — 19 MB, debug build.
 
-The canonical, always-current copies live on the **`apk-latest`** branch, refreshed by
-`.github/workflows/fylio-apk.yml` on every push that touches `fylio/`:
+These local copies are not tracked in this branch (see `.gitignore`); they are refreshed
+from CI after every build. The canonical copies live on the **`apk-latest`** branch:
 
 ```
 https://github.com/ashishshetty472-netizen/odin-recipies/raw/apk-latest/app-release.apk
 ```
 
-To rebuild from source: push a change under `fylio/`, or run the *Build Fylio APK*
-workflow manually from the Actions tab.
+Rebuild anytime: push a change under `fylio/`, or run *Build Fylio APK* from the Actions tab.

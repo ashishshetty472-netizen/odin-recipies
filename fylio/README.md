@@ -44,6 +44,25 @@ Outputs:
 - `app/build/outputs/apk/debug/app-debug.apk`
 - `app/build/outputs/apk/release/app-release.apk`
 
+## Artwork
+
+Both supplied assets are wired in:
+
+| Asset | Where it lives |
+| --- | --- |
+| Fylio logo (blue rounded square) | `res/mipmap-*/ic_launcher*.png` (legacy), `res/mipmap-*/ic_launcher_foreground.png` + `@color/ic_launcher_background` (adaptive, API 26+), `res/drawable-nodpi/ic_fylio_logo.png` (in-app header) |
+| Icon sheet, 88 tool tiles | `res/drawable-xxhdpi/ic_tool_<id>.png`, mapped in `data/FylioTools.kt` |
+
+The tool tiles are extracted at 192 px with the caption text removed, so they render as the
+rounded dark plates from the sheet. Every icon in the sheet is reachable in-app, and the
+tool catalogue mirrors the sheet's own grouping:
+
+| Sheet group | App surface |
+| --- | --- |
+| Main Tools | four cards under the header |
+| PDF Tools / Document Scanner / Create PDF / File Conversion | horizontal rails on Home, full grid in the tool screen |
+| Editing & Annotation / File Manager / Utilities & Settings | rails on Home, Utilities also in Settings |
+
 ## What's inside
 
 | Area | Notes |

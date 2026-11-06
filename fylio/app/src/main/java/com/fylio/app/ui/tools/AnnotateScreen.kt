@@ -40,7 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.asAndroidCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -414,7 +414,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawAnnotations(lis
                 Offset(a.end.x * size.width, a.end.y * size.height),
                 strokeWidth = 2f
             )
-            is Annotation.Text -> drawContext.canvas.nativeCanvasCompat().apply {
+            is Annotation.Text -> drawContext.canvas.nativeCanvas.apply {
                 val paint = android.graphics.Paint().apply {
                     color = a.color.toArgb()
                     textSize = a.size * 3f
@@ -441,9 +441,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawInk(
         style = androidx.compose.ui.graphics.drawscope.Stroke(width = width, cap = StrokeCap.Round)
     )
 }
-
-private fun androidx.compose.ui.graphics.Canvas.nativeCanvasCompat(): android.graphics.Canvas =
-    asAndroidCanvas()
 
 private fun Color.toArgb(): Int = android.graphics.Color.argb(
     (alpha * 255).toInt(), (red * 255).toInt(), (green * 255).toInt(), (blue * 255).toInt()

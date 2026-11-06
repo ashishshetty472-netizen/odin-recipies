@@ -251,7 +251,7 @@ fun OcrScreen(
                     SmallAction("Export TXT", "text_to_pdf") {
                         val out = FylioStore.uniqueFile(
                             FylioStore.exportsDir(context),
-                            doc.nameWithoutExtension + "_ocr",
+                            doc.name.substringBeforeLast('.').ifBlank { doc.name } + "_ocr",
                             "txt"
                         )
                         runCatching { out.writeText(text) }
@@ -260,7 +260,7 @@ fun OcrScreen(
                     SmallAction("Export PDF", "pdf") {
                         val out = FylioStore.uniqueFile(
                             FylioStore.exportsDir(context),
-                            doc.nameWithoutExtension + "_ocr",
+                            doc.name.substringBeforeLast('.').ifBlank { doc.name } + "_ocr",
                             "pdf"
                         )
                         PdfEngine.textToPdf(text.ifBlank { "(no text)" }, out, "OCR · ${doc.name}")

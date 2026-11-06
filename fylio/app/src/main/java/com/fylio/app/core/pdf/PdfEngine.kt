@@ -298,7 +298,7 @@ object PdfEngine {
                     cs.setNonStrokingColor(0.55f, 0.55f, 0.55f)
                     cs.setTextMatrix(
                         com.tom_roush.pdfbox.util.Matrix.getRotateInstance(
-                            Math.toRadians(45.0).toFloat(), 80f, 200f
+                            Math.toRadians(45.0), 80.0, 200.0
                         )
                     )
                     cs.newLineAtOffset(80f, 200f)

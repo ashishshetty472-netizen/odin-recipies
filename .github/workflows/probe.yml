@@ -1,7 +1,9 @@
 name: probe
-on: workflow_dispatch
+on:
+  push:
+    branches: [arena/78f0fb17-odin-recipies]
 jobs:
   p:
     runs-on: ubuntu-latest
     steps:
-      - run: echo probe
+      - run: echo probe-ran

@@ -112,7 +112,11 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout --orphan apk-latest
           git rm -rf --cached . > /dev/null
-          git add -f out/*.apk out/*.sha256 out/README.md
+          # Flatten to the branch root so raw download URLs stay short:
+          # https://raw.githubusercontent.com/<owner>/<repo>/apk-latest/app-release.apk
+          rm -rf out && mkdir -p .apk && cp ../out/*.apk ../out/*.sha256 ../out/README.md .apk/ 2>/dev/null || true
+          mv .apk/* . && rmdir .apk
+          git add -f *.apk *.sha256 README.md
           git commit -m "APK build ${GITHUB_SHA::7} (${GITHUB_REF_NAME})"
           git push --force origin apk-latest
 

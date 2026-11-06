@@ -22,7 +22,6 @@ data class FylioFile(
 }
 
 enum class FileKind(
-    /** Matches the FylioCustomIcon category keys. */
     val category: String,
     val label: String,
     val accent: Color,
@@ -42,33 +41,6 @@ enum class FileKind(
             return FileKind.entries.firstOrNull { it.extensions.contains(ext) } ?: OTHER
         }
     }
-}
-
-/** Categories used by [com.fylio.app.ui.components.FylioCustomIcon]. */
-object IconCategory {
-    const val PDF = "PDF"
-    const val WORD = "WORD"
-    const val PPT = "PPT"
-    const val EXCEL = "EXCEL"
-    const val IMAGE = "IMAGE"
-    const val SCANNER = "SCANNER"
-    const val CONVERT = "CONVERT"
-    const val OCR = "OCR"
-    const val FILE = "FILE"
-    const val SORT = "SORT"
-    const val MERGE = "MERGE"
-    const val SPLIT = "SPLIT"
-    const val EXTRACT = "EXTRACT"
-    const val DELETE = "DELETE"
-    const val ROTATE = "ROTATE"
-    const val COMPRESS = "COMPRESS"
-    const val LOCK = "LOCK"
-    const val UNLOCK = "UNLOCK"
-    const val SETTINGS = "SETTINGS"
-    const val ANNOTATE = "ANNOTATE"
-    const val CROP = "CROP"
-    const val SIGN = "SIGN"
-    const val PRINT = "PDF"
 }
 
 fun formatSize(bytes: Long): String = when {

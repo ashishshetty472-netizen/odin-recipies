@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -36,87 +37,77 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fylio.app.data.FylioFile
+import com.fylio.app.data.FylioTools
+import com.fylio.app.data.ToolDef
+import com.fylio.app.data.ToolStatus
 import com.fylio.app.ui.LibraryState
 import com.fylio.app.ui.SortOrder
-import com.fylio.app.ui.components.FylioCustomIcon
+import com.fylio.app.ui.components.FylioBrandHeader
 import com.fylio.app.ui.components.FylioFileRow
 import com.fylio.app.ui.components.FylioSectionHeader
+import com.fylio.app.ui.components.FylioToolIcon
+import com.fylio.app.ui.components.FylioToolTile
 import com.fylio.app.ui.theme.FylioBorderDark
 import com.fylio.app.ui.theme.FylioElectricBlue
 import com.fylio.app.ui.theme.FylioSurfaceDark
+import com.fylio.app.ui.theme.FylioSurfaceDarkElevated
+import com.fylio.app.ui.theme.FylioTextPrimary
 import com.fylio.app.ui.theme.FylioTextSecondary
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private data class ToolAction(
-    val category: String,
-    val title: String,
-    val subtitle: String
-)
-
-private val tools = listOf(
-    ToolAction("SCANNER", "Scan", "Camera → PDF"),
-    ToolAction("CONVERT", "Convert", "PDF ⇄ image"),
-    ToolAction("MERGE", "Merge", "Join pages"),
-    ToolAction("SPLIT", "Split", "Burst a PDF"),
-    ToolAction("EXTRACT", "Extract", "Pull pages out"),
-    ToolAction("OCR", "OCR", "Read the text"),
-    ToolAction("COMPRESS", "Compress", "Shrink files"),
-    ToolAction("ROTATE", "Rotate", "Fix orientation")
-)
-
 @Composable
 fun HomeScreen(
     state: LibraryState,
     onOpen: (FylioFile) -> Unit,
-    onScan: () -> Unit,
     onTool: (String) -> Unit,
     onQueryChange: (String) -> Unit,
     onSortChange: (SortOrder) -> Unit,
+    onSectionMore: (String) -> Unit,
     onSettings: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        // ---------- brand header ----------
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp, bottom = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = "Fylio",
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "${state.documents.size} documents · scans, PDFs & images",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = FylioTextSecondary
-                    )
+            FylioBrandHeader(
+                subtitle = "${state.documents.size} documents · on-device",
+                modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
+                trailing = {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(FylioSurfaceDark)
+                            .clickable { onSettings() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        FylioToolIcon("theme_prefs", size = 22.dp)
+                    }
                 }
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(FylioSurfaceDark)
-                        .clickable { onSettings() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    FylioCustomIcon("SETTINGS", size = 22.dp)
+            )
+        }
+
+        // ---------- main tools ----------
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FylioTools.mainTools.forEach { tool ->
+                    MainToolCard(
+                        tool = tool,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onTool(tool.id) }
+                    )
                 }
             }
         }
 
-        item { Spacer(Modifier.height(2.dp)) }
-
+        // ---------- search ----------
         item {
             OutlinedTextField(
                 value = state.query,
@@ -150,47 +141,48 @@ fun HomeScreen(
             )
         }
 
-        item {
-            Spacer(Modifier.height(4.dp))
-            ScanBanner(onScan = onScan)
-        }
-
-        item {
-            Spacer(Modifier.height(4.dp))
-            FylioSectionHeader(title = "Toolkit")
-        }
-
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                tools.chunked(4).forEach { row ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        row.forEach { tool ->
-                            ToolTile(
-                                tool = tool,
-                                modifier = Modifier.weight(1f),
-                                onClick = { onTool(tool.category) }
-                            )
-                        }
-                        repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+        // ---------- tool sections, each a horizontal rail ----------
+        val rails = listOf(
+            "PDF Tools",
+            "Document Scanner",
+            "Create PDF",
+            "File Conversion",
+            "Editing & Annotation",
+            "File Manager",
+            "Utilities & Settings"
+        )
+        items(rails) { title ->
+            val section = FylioTools.section(title) ?: return@items
+            Column {
+                FylioSectionHeader(
+                    title = title,
+                    modifier = Modifier.padding(top = 6.dp),
+                    action = "All",
+                    onAction = { onSectionMore(title) }
+                )
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    contentPadding = PaddingValues(vertical = 4.dp)
+                ) {
+                    items(section.tools, key = { it.id }) { tool ->
+                        FylioToolTile(
+                            tool = tool,
+                            tileSize = 58.dp,
+                            badge = if (tool.status == ToolStatus.COMING_SOON) "soon" else null,
+                            onClick = { onTool(tool.id) }
+                        )
                     }
                 }
             }
         }
 
+        // ---------- documents ----------
         item {
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                FylioSectionHeader(
-                    title = "Documents",
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            FylioSectionHeader(
+                title = "Documents",
+                modifier = Modifier.padding(top = 8.dp)
+            )
         }
 
         item {
@@ -223,11 +215,11 @@ fun HomeScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 40.dp),
+                        .padding(vertical = 32.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        FylioCustomIcon("FILE", size = 44.dp)
+                        FylioToolIcon("folder", size = 44.dp)
                         Spacer(Modifier.height(10.dp))
                         Text(
                             text = if (state.query.isBlank()) "No documents yet"
@@ -250,9 +242,10 @@ fun HomeScreen(
     }
 }
 
+/** One of the four big cards in the Main Tools row. */
 @Composable
-private fun ToolTile(
-    tool: ToolAction,
+private fun MainToolCard(
+    tool: ToolDef,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -264,63 +257,28 @@ private fun ToolTile(
             .padding(vertical = 12.dp, horizontal = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        FylioCustomIcon(tool.category, size = 26.dp)
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(RoundedCornerShape(13.dp))
+                .background(FylioSurfaceDarkElevated),
+            contentAlignment = Alignment.Center
+        ) {
+            FylioToolIcon(tool.icon, size = 30.dp)
+        }
         Spacer(Modifier.height(7.dp))
         Text(
             text = tool.title,
-            fontSize = 11.sp,
+            fontSize = 10.sp,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = tool.subtitle,
-            fontSize = 9.sp,
-            color = FylioTextSecondary,
+            color = FylioTextPrimary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
     }
 }
 
-@Composable
-private fun ScanBanner(onScan: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(FylioElectricBlue.copy(alpha = 0.13f))
-            .clickable(onClick = onScan)
-            .padding(horizontal = 14.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        FylioCustomIcon("SCANNER", size = 34.dp)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = "Scan a document",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = "Multi-page capture · auto-detect · export to PDF",
-                style = MaterialTheme.typography.bodyMedium,
-                color = FylioTextSecondary
-            )
-        }
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(50))
-                .background(FylioElectricBlue)
-                .padding(horizontal = 14.dp, vertical = 7.dp)
-        ) {
-            Text("Open", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
-        }
-    }
-}
-
-private fun relativeTime(millis: Long): String {
+internal fun relativeTime(millis: Long): String {
     if (millis <= 0L) return "unknown"
     val diff = System.currentTimeMillis() - millis
     val minute = 60_000L
@@ -334,3 +292,4 @@ private fun relativeTime(millis: Long): String {
         else -> SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(millis))
     }
 }
+

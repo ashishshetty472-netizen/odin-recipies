@@ -22,91 +22,128 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fylio.app.R
 import com.fylio.app.data.FylioFile
-import com.fylio.app.data.IconCategory
+import com.fylio.app.data.FylioTools
+import com.fylio.app.data.ToolDef
 import com.fylio.app.ui.theme.FylioBorderDark
 import com.fylio.app.ui.theme.FylioElectricBlue
 import com.fylio.app.ui.theme.FylioSurfaceDark
+import com.fylio.app.ui.theme.FylioSurfaceDarkElevated
+import com.fylio.app.ui.theme.FylioTextPrimary
 import com.fylio.app.ui.theme.FylioTextSecondary
 
 /**
- * Maps a category key to one of the 22 custom vector drawables in res/drawable.
- * Keep this in sync with [IconCategory].
+ * Renders one of the 88 tool icons that shipped with the Fylio icon sheet.
+ *
+ * Every icon is a colour bitmap with a transparent background, so it drops straight
+ * onto a dark tile — exactly how the design sheet presents them. An unknown id falls
+ * back to the generic file icon.
  */
 @Composable
-fun FylioCustomIcon(
-    category: String,
+fun FylioToolIcon(
+    iconId: String,
     modifier: Modifier = Modifier,
-    size: Dp = 40.dp,
-    tint: Color? = null
+    size: Dp = 40.dp
 ) {
-    val drawableId = when (category) {
-        IconCategory.PDF -> R.drawable.ic_pdf_red
-        IconCategory.WORD -> R.drawable.ic_word_blue
-        IconCategory.PPT -> R.drawable.ic_ppt_orange
-        IconCategory.EXCEL -> R.drawable.ic_excel_green
-        IconCategory.IMAGE -> R.drawable.ic_image_purple
-        IconCategory.SCANNER -> R.drawable.ic_scanner_cyan
-        IconCategory.CONVERT -> R.drawable.ic_convert_gradient
-        IconCategory.OCR -> R.drawable.ic_ocr_purple
-        IconCategory.FILE -> R.drawable.ic_file_neutral
-        IconCategory.SORT -> R.drawable.ic_sort_green
-        IconCategory.MERGE -> R.drawable.ic_merge_red
-        IconCategory.SPLIT -> R.drawable.ic_split_red
-        IconCategory.EXTRACT -> R.drawable.ic_extract_red
-        IconCategory.DELETE -> R.drawable.ic_delete_red
-        IconCategory.ROTATE -> R.drawable.ic_rotate_blue
-        IconCategory.COMPRESS -> R.drawable.ic_compress_red
-        IconCategory.LOCK -> R.drawable.ic_lock_amber
-        IconCategory.UNLOCK -> R.drawable.ic_unlock_green
-        IconCategory.SETTINGS -> R.drawable.ic_settings_grey
-        IconCategory.ANNOTATE -> R.drawable.ic_annotation_purple
-        IconCategory.CROP -> R.drawable.ic_crop_green
-        IconCategory.SIGN -> R.drawable.ic_sign_blue
-        IconCategory.PRINT -> R.drawable.ic_pdf_red
-        else -> R.drawable.ic_pdf_red
-    }
+    val resId = FylioTools.drawableFor(iconId)
     Image(
-        painter = painterResource(id = drawableId),
-        contentDescription = category,
-        modifier = modifier.size(size),
-        colorFilter = tint?.let { ColorFilter.tint(it) }
+        painter = painterResource(id = resId),
+        contentDescription = null,
+        contentScale = ContentScale.Fit,
+        modifier = modifier.size(size)
     )
 }
 
-/** Icon tile used everywhere a document type is shown. */
+/** Square dark tile + icon + optional caption, matching the icon-sheet look. */
+@Composable
+fun FylioToolTile(
+    tool: ToolDef,
+    modifier: Modifier = Modifier,
+    tileSize: Dp = 62.dp,
+    showLabel: Boolean = true,
+    badge: String? = null,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp, horizontal = 2.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(tileSize)
+                .clip(RoundedCornerShape(tileSize * 0.26f))
+                .background(FylioSurfaceDarkElevated),
+            contentAlignment = Alignment.Center
+        ) {
+            FylioToolIcon(
+                iconId = tool.icon,
+                size = tileSize * 0.62f
+            )
+            if (badge != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(FylioElectricBlue)
+                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                ) {
+                    Text(badge, color = androidx.compose.ui.graphics.Color.White, fontSize = 7.sp)
+                }
+            }
+        }
+        if (showLabel) {
+            Spacer(Modifier.height(5.dp))
+            Text(
+                text = tool.title,
+                fontSize = 9.sp,
+                lineHeight = 11.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                color = FylioTextPrimary
+            )
+        }
+    }
+}
+
+/** Document-type badge. Uses the shipped document icons where one exists. */
 @Composable
 fun FylioFileBadge(
-    category: String,
-    accent: Color,
-    size: Dp = 44.dp,
-    cornerRadius: Dp = 13.dp
+    item: FylioFile,
+    size: Dp = 44.dp
 ) {
     Box(
         modifier = Modifier
             .size(size)
-            .clip(RoundedCornerShape(cornerRadius))
-            .background(accent.copy(alpha = 0.14f)),
+            .clip(RoundedCornerShape(size * 0.28f))
+            .background(FylioSurfaceDarkElevated),
         contentAlignment = Alignment.Center
     ) {
-        FylioCustomIcon(category = category, size = size * 0.62f)
+        FylioToolIcon(
+            iconId = FylioTools.iconForFile(item),
+            size = size * 0.68f
+        )
     }
 }
 
-/** Pill-shaped tag, e.g. "2 pages" or "PDF". */
 @Composable
 fun FylioTag(
     text: String,
-    accent: Color = FylioElectricBlue,
+    accent: androidx.compose.ui.graphics.Color = FylioElectricBlue,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -115,16 +152,10 @@ fun FylioTag(
             .background(accent.copy(alpha = 0.15f))
             .padding(horizontal = 9.dp, vertical = 3.dp)
     ) {
-        Text(
-            text = text,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = accent
-        )
+        Text(text, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = accent)
     }
 }
 
-/** Section header with an optional trailing action. */
 @Composable
 fun FylioSectionHeader(
     title: String,
@@ -157,7 +188,6 @@ fun FylioSectionHeader(
     }
 }
 
-/** Row in the document library. */
 @Composable
 fun FylioFileRow(
     item: FylioFile,
@@ -175,10 +205,10 @@ fun FylioFileRow(
         border = androidx.compose.foundation.BorderStroke(1.dp, FylioBorderDark)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            FylioFileBadge(category = item.kind.category, accent = item.kind.accent)
+            FylioFileBadge(item)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
@@ -203,5 +233,42 @@ fun FylioFileRow(
                 trailing()
             }
         }
+    }
+}
+
+/** The Fylio wordmark + logo used on the home header. */
+@Composable
+fun FylioBrandHeader(
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    trailing: @Composable (() -> Unit)? = null
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.ic_fylio_logo),
+            contentDescription = "Fylio",
+            modifier = Modifier
+                .size(42.dp)
+                .clip(RoundedCornerShape(12.dp))
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = "Fylio",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = FylioTextSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        trailing?.invoke()
     }
 }

@@ -60,7 +60,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fylio.app.data.FileKind
 import com.fylio.app.data.FylioFile
-import com.fylio.app.ui.components.FylioCustomIcon
+import com.fylio.app.data.FylioTools
+import com.fylio.app.ui.components.FylioToolIcon
 import com.fylio.app.ui.components.FylioTag
 import com.fylio.app.ui.theme.FylioBgDark
 import com.fylio.app.ui.theme.FylioElectricBlue
@@ -206,7 +207,7 @@ private fun PdfViewer(file: File) {
     var pageIndex by rememberSaveable { mutableIntStateOf(0) }
 
     if (pageCount == 0) {
-        EmptyState("This PDF has no readable pages", "PDF")
+        EmptyState("This PDF has no readable pages", "save_pdf")
         return
     }
 
@@ -301,7 +302,7 @@ private fun ImageViewer(file: File) {
         contentAlignment = Alignment.Center
     ) {
         if (bitmap == null) {
-            EmptyState("Could not decode this image", "IMAGE")
+            EmptyState("Could not decode this image", "gallery")
         } else {
             ZoomableImage(bitmap)
         }
@@ -375,7 +376,7 @@ private fun DocumentPreview(item: FylioFile) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        FylioCustomIcon(item.kind.category, size = 72.dp)
+        FylioToolIcon(FylioTools.iconForFile(item), size = 72.dp)
         Spacer(Modifier.height(14.dp))
         Text(
             text = item.name,
@@ -414,13 +415,13 @@ private fun DocumentPreview(item: FylioFile) {
 }
 
 @Composable
-private fun EmptyState(message: String, category: String) {
+private fun EmptyState(message: String, iconId: String) {
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        FylioCustomIcon(category, size = 52.dp)
+        FylioToolIcon(iconId, size = 52.dp)
         Spacer(Modifier.height(10.dp))
         Text(message, color = FylioTextSecondary, style = MaterialTheme.typography.bodyLarge)
     }

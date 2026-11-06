@@ -63,6 +63,9 @@ fun ScanFlowScreen(
     var compiling by remember { mutableStateOf(false) }
     var compiledPages by remember { mutableIntStateOf(0) }
     var totalPages by remember { mutableIntStateOf(0) }
+    // True when the camera was opened from the enhance screen via "Add page", so back
+    // returns to the session instead of dropping the user out of the pipeline.
+    var addingToSession by remember { mutableStateOf(false) }
 
     // ---------------------------------------------------------- navigation
     fun leaveFlow() {
@@ -73,6 +76,7 @@ fun ScanFlowScreen(
     /** Camera -> crop of the freshly captured page, or straight back home when empty. */
     fun openCrop(pageId: String) {
         session.setActive(pageId)
+        addingToSession = false
         route = ScanRoute.Crop(pageId)
     }
 
@@ -80,7 +84,14 @@ fun ScanFlowScreen(
         is ScanRoute.Camera -> CameraScanScreen(
             session = session,
             state = state,
-            onBack = { leaveFlow() },
+            onBack = {
+                if (addingToSession && state.pages.isNotEmpty()) {
+                    addingToSession = false
+                    route = ScanRoute.Enhance
+                } else {
+                    leaveFlow()
+                }
+            },
             onReviewPage = { pageId -> openCrop(pageId) }
         )
 
@@ -99,7 +110,10 @@ fun ScanFlowScreen(
                 val active = state.active
                 if (active != null) route = ScanRoute.Crop(active.id) else route = ScanRoute.Camera
             },
-            onAddPage = { route = ScanRoute.Camera },
+            onAddPage = {
+                addingToSession = true
+                route = ScanRoute.Camera
+            },
             onSave = { request ->
                 compiling = true
                 totalPages = state.pages.size

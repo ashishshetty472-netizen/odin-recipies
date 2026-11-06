@@ -73,6 +73,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
@@ -107,6 +108,9 @@ fun CameraScanScreen(
     var capturing by remember { mutableStateOf(false) }
     var importing by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<String?>(null) }
+    // Frame -> view mapping produced by the preview (FILL_CENTER crops, so the numbers
+    // are not a plain scale: without this a detected corner drifts off the real edge).
+    var mapping by remember { mutableStateOf(PreviewMapping()) }
 
     // Camera back button -> Home (not app exit).
     BackHandler(enabled = true) { onBack() }
@@ -202,7 +206,8 @@ fun CameraScanScreen(
                 imageCapture = imageCapture,
                 flashOn = flashOn,
                 autoDetect = autoDetect,
-                onQuad = { session.setDetectedQuad(it) }
+                onQuad = { session.setDetectedQuad(it) },
+                onMapping = { mapping = it }
             )
         } else {
             PermissionPrompt { permissionLauncher.launch(Manifest.permission.CAMERA) }
@@ -213,19 +218,25 @@ fun CameraScanScreen(
             val quad = state.detectedQuad
             Canvas(Modifier.fillMaxSize()) {
                 if (quad != null) {
+                    // Translate normalised frame coordinates into view coordinates.
+                    val p0 = mapping.toView(quad.tlX, quad.tlY, size.width, size.height)
+                    val p1 = mapping.toView(quad.trX, quad.trY, size.width, size.height)
+                    val p2 = mapping.toView(quad.brX, quad.brY, size.width, size.height)
+                    val p3 = mapping.toView(quad.blX, quad.blY, size.width, size.height)
+                    val points = listOf(p0, p1, p2, p3)
                     val path = Path().apply {
-                        moveTo(quad.tlX * size.width, quad.tlY * size.height)
-                        lineTo(quad.trX * size.width, quad.trY * size.height)
-                        lineTo(quad.brX * size.width, quad.brY * size.height)
-                        lineTo(quad.blX * size.width, quad.blY * size.height)
+                        moveTo(p0.x, p0.y)
+                        lineTo(p1.x, p1.y)
+                        lineTo(p2.x, p2.y)
+                        lineTo(p3.x, p3.y)
                         close()
                     }
                     // #2563EB at 20% fill
                     drawPath(path, ScanBlue.copy(alpha = 0.20f))
                     drawPath(path, ScanBlue, style = Stroke(width = 2.5f))
-                    quad.corners().forEach { (x, y) ->
-                        drawCircle(Color.White, radius = 6f, center = Offset(x * size.width, y * size.height))
-                        drawCircle(ScanBlue, radius = 6f, center = Offset(x * size.width, y * size.height), style = Stroke(2f))
+                    points.forEach { center ->
+                        drawCircle(Color.White, radius = 7f, center = center)
+                        drawCircle(ScanBlue, radius = 7f, center = center, style = Stroke(2f))
                     }
                 } else {
                     // subtle corner brackets hint while nothing is detected
@@ -562,7 +573,8 @@ private fun CameraPreview(
     imageCapture: ImageCapture,
     flashOn: Boolean,
     autoDetect: Boolean,
-    onQuad: (ScanQuad) -> Unit
+    onQuad: (ScanQuad) -> Unit,
+    onMapping: (PreviewMapping) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -596,7 +608,7 @@ private fun CameraPreview(
             val analysis = if (autoDetect) {
                 ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .setTargetResolution(android.util.Size(1280, 720))
+                    .setTargetResolution(android.util.Size(FRAME_WIDTH, FRAME_HEIGHT))
                     .build()
                     .also { it.setAnalyzer(analysisExecutor, analyzer) }
             } else null
@@ -623,5 +635,65 @@ private fun CameraPreview(
         }
     }
 
-    AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
+    AndroidView(
+        factory = { previewView },
+        modifier = Modifier
+            .fillMaxSize()
+            .onSizeChanged { size ->
+                onMapping(
+                    PreviewMapping.compute(
+                        viewWidth = size.width.toFloat(),
+                        viewHeight = size.height.toFloat(),
+                        frameWidth = FRAME_WIDTH,
+                        frameHeight = FRAME_HEIGHT
+                    )
+                )
+            }
+    )
 }
+
+/**
+ * Maps normalised coordinates from the analysis frame to the on-screen preview.
+ *
+ * [PreviewView] is set to FILL_CENTER, which scales the frame uniformly and crops the
+ * overflow, so the conversion is `view = (norm - cropOrigin) * scale`. The analysis stream
+ * is fixed at [FRAME_WIDTH]x[FRAME_HEIGHT] landscape, matching the CameraX target
+ * resolution below.
+ */
+data class PreviewMapping(
+    val scaleX: Float = 1f,
+    val scaleY: Float = 1f,
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f
+) {
+    fun toView(nx: Float, ny: Float, width: Float, height: Float): Offset =
+        Offset(offsetX + nx * scaleX * width, offsetY + ny * scaleY * height)
+
+    companion object {
+        fun compute(
+            viewWidth: Float,
+            viewHeight: Float,
+            frameWidth: Int,
+            frameHeight: Int
+        ): PreviewMapping {
+            if (viewWidth <= 0f || viewHeight <= 0f) return PreviewMapping()
+            val frameAspect = frameWidth.toFloat() / frameHeight.toFloat()
+            val viewAspect = viewWidth / viewHeight
+            return if (frameAspect > viewAspect) {
+                // frame wider than the view: sides get cropped
+                val visibleFraction = viewAspect / frameAspect
+                val crop = (1f - visibleFraction) / 2f
+                PreviewMapping(scaleX = 1f / visibleFraction, scaleY = 1f, offsetX = -crop / visibleFraction)
+            } else {
+                // frame taller than the view: top/bottom get cropped
+                val visibleFraction = frameAspect / viewAspect
+                val crop = (1f - visibleFraction) / 2f
+                PreviewMapping(scaleX = 1f, scaleY = 1f / visibleFraction, offsetY = -crop / visibleFraction)
+            }
+        }
+    }
+}
+
+/** CameraX analysis target resolution used for both the analyzer and the mapping. */
+private const val FRAME_WIDTH = 1280
+private const val FRAME_HEIGHT = 720

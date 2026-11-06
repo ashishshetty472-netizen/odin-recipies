@@ -56,6 +56,7 @@ import com.fylio.app.core.office.OfficeKind
 import com.fylio.app.core.office.OfficeParser
 import com.fylio.app.core.pdf.PdfEngine
 import com.fylio.app.data.DocType
+import com.fylio.app.data.FylioStore
 import com.fylio.app.data.db.DocumentEntity
 import com.fylio.app.ui.components.FylioIcon
 import com.fylio.app.ui.screens.FilesScreen
@@ -224,8 +225,8 @@ fun FylioApp(
                                             withContext(Dispatchers.IO) {
                                                 context.cacheDir.deleteRecursively()
                                                 FylioStore.scansDir(context).listFiles()
-                                                    ?.filter { it.length() == 0L }
-                                                    ?.forEach { it.delete() }
+                                                    ?.filter { file -> file.length() == 0L }
+                                                    ?.forEach { file -> file.delete() }
                                             }
                                             toast("Cache cleared")
                                         }

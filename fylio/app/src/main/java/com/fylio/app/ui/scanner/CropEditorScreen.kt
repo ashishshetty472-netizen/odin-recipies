@@ -45,6 +45,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
@@ -254,7 +255,7 @@ fun CropEditorScreen(
                         val scrim = Path().apply {
                             addPath(outer)
                             addPath(selection)
-                            fillType = androidx.compose.ui.graphics.PathFillType.EVEN_ODD
+                            fillType = PathFillType.EvenOdd
                         }
                         drawPath(scrim, Color.Black.copy(alpha = 0.45f))
 

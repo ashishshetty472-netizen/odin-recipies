@@ -5,6 +5,7 @@ name: Build Fylio APK
 #
 # The finished APKs are committed to the `apk-latest` branch so they can be downloaded
 # straight from GitHub, and are also attached to the workflow run as artifacts.
+# Build logs are published to the `ci-logs` branch on failure.
 
 on:
   push:
@@ -37,13 +38,22 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install SDK platform + build tools
+      - name: Ensure Android SDK packages
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+          set -x
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          echo "SDK=$SDK"
+          ls "$SDK" || true
+          if [ -d "$SDK/platforms/android-34" ] && [ -d "$SDK/build-tools/34.0.0" ]; then
+            echo "android-34 and build-tools 34.0.0 already present"
+          else
+            SDKM="$(command -v sdkmanager || true)"
+            if [ -z "$SDKM" ]; then
+              SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+            fi
+            yes | "$SDKM" --licenses > /dev/null 2>&1 || true
+            "$SDKM" "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+          fi
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -57,14 +67,16 @@ jobs:
       - name: Build APKs
         working-directory: fylio
         run: |
+          echo "sdk.dir=${ANDROID_HOME:-$ANDROID_SDK_ROOT}" > local.properties
           chmod +x ./gradlew
-          ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace --no-daemon
+          set -o pipefail
+          ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace --no-daemon 2>&1 | tee "$RUNNER_TEMP/build.log"
 
       - name: Collect APKs
         if: always()
         run: |
           mkdir -p out
-          find fylio/app/build/outputs/apk -name '*.apk' -print -exec cp {} out/ \;
+          find fylio/app/build/outputs/apk -name '*.apk' -print -exec cp {} out/ \; || true
           ls -la out || true
 
       - name: Upload artifacts
@@ -81,9 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           cd out
-          for f in *.apk; do
-            sha256sum "$f" > "$f.sha256"
-          done
+          for f in *.apk; do sha256sum "$f" > "$f.sha256"; done
           {
             echo "# Fylio APK builds"
             echo
@@ -105,3 +115,20 @@ jobs:
           git add -f out/*.apk out/*.sha256 out/README.md
           git commit -m "APK build ${GITHUB_SHA::7} (${GITHUB_REF_NAME})"
           git push --force origin apk-latest
+
+      - name: Publish build log on failure
+        if: failure()
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/logs
+          cp "$RUNNER_TEMP/build.log" /tmp/logs/build.log 2>/dev/null || echo "no gradle log produced" > /tmp/logs/build.log
+          cd /tmp/logs
+          git init -q
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build.log
+          git commit -qm "build log ${GITHUB_SHA::7}"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin HEAD:refs/heads/ci-logs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

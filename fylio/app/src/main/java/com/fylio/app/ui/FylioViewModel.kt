@@ -4,35 +4,57 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.fylio.app.data.FileKind
-import com.fylio.app.data.FylioFile
+import com.fylio.app.core.pdf.PdfEngine
+import com.fylio.app.data.DocumentItem
+import com.fylio.app.data.DocumentRepository
+import com.fylio.app.data.DocType
 import com.fylio.app.data.FylioStore
+import com.fylio.app.data.db.DocumentEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-data class LibraryState(
-    val documents: List<FylioFile> = emptyList(),
+data class LibraryUiState(
+    val documents: List<DocumentEntity> = emptyList(),
+    val local: List<DocumentItem> = emptyList(),
+    val continueReading: List<DocumentEntity> = emptyList(),
     val query: String = "",
-    val sortBy: SortOrder = SortOrder.RECENT,
+    val typeFilter: DocType? = null,
+    val sort: SortOrder = SortOrder.RECENT,
+    val grid: Boolean = false,
     val loading: Boolean = true,
-    val message: String? = null
+    val toast: String? = null
 ) {
-    val visible: List<FylioFile>
-        get() {
-            val filtered = if (query.isBlank()) documents else documents.filter {
-                it.name.contains(query, ignoreCase = true) ||
-                    it.kind.label.contains(query, ignoreCase = true)
+    val storageSegments: List<Pair<DocType, Long>>
+        get() = documents.groupBy { it.typeLabel }
+            .mapNotNull { (label, docs) ->
+                val type = DocType.entries.firstOrNull { it.shortLabel == label } ?: return@mapNotNull null
+                type to docs.sumOf { it.sizeBytes }
             }
-            return when (sortBy) {
-                SortOrder.RECENT -> filtered.sortedByDescending { it.modified }
-                SortOrder.NAME -> filtered.sortedBy { it.name.lowercase() }
-                SortOrder.SIZE -> filtered.sortedByDescending { it.sizeBytes }
-                SortOrder.TYPE -> filtered.sortedBy { it.kind.ordinal }
+            .filter { it.second > 0 }
+            .sortedByDescending { it.second }
+
+    val totalBytes: Long get() = documents.sumOf { it.sizeBytes }
+
+    val visible: List<DocumentEntity>
+        get() {
+            var list = documents
+            if (typeFilter != null) list = list.filter { it.typeLabel == typeFilter.shortLabel }
+            if (query.isNotBlank()) {
+                list = list.filter { it.name.contains(query, ignoreCase = true) }
+            }
+            return when (sort) {
+                SortOrder.RECENT -> list.sortedByDescending { it.lastOpened.takeIf { t -> t > 0 } ?: it.modified }
+                SortOrder.NAME -> list.sortedBy { it.name.lowercase() }
+                SortOrder.SIZE -> list.sortedByDescending { it.sizeBytes }
+                SortOrder.TYPE -> list.sortedBy { it.typeLabel }
             }
         }
 }
@@ -43,85 +65,140 @@ enum class SortOrder(val label: String) {
 
 class FylioViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val _state = MutableStateFlow(LibraryState())
-    val state: StateFlow<LibraryState> = _state.asStateFlow()
+    private val repo = DocumentRepository(app)
+    private val _state = MutableStateFlow(LibraryUiState())
+    val state: StateFlow<LibraryUiState> = _state.asStateFlow()
+
+    /** Documents the toolbar is acting on (multi-select in Files). */
+    private val _selection = MutableStateFlow<Set<String>>(emptySet())
+    val selection: StateFlow<Set<String>> = _selection.asStateFlow()
 
     init {
-        refresh()
+        PdfEngine.init(app)
+        FylioStore.seedIfEmpty(app)
+        viewModelScope.launch {
+            repo.recent.collect { docs ->
+                _state.value = _state.value.copy(documents = docs, loading = false)
+            }
+        }
+        viewModelScope.launch {
+            repo.continueReading.collect { docs ->
+                _state.value = _state.value.copy(continueReading = docs)
+            }
+        }
+        refreshLocal()
     }
 
-    fun refresh() {
+    fun refreshLocal() {
         viewModelScope.launch {
-            val docs = withContext(Dispatchers.IO) { FylioStore.listDocuments(getApplication()) }
-            _state.value = _state.value.copy(documents = docs, loading = false)
+            val local = repo.localDocuments()
+            _state.value = _state.value.copy(local = local)
         }
     }
 
-    fun setQuery(q: String) {
-        _state.value = _state.value.copy(query = q)
+    fun setQuery(q: String) { _state.value = _state.value.copy(query = q) }
+    fun setFilter(t: DocType?) { _state.value = _state.value.copy(typeFilter = t) }
+    fun setSort(s: SortOrder) { _state.value = _state.value.copy(sort = s) }
+    fun toggleGrid() { _state.value = _state.value.copy(grid = !_state.value.grid) }
+    fun clearToast() { _state.value = _state.value.copy(toast = null) }
+
+    private fun toast(msg: String) { _state.value = _state.value.copy(toast = msg) }
+
+    // ------------------------------------------------------------- selection
+
+    fun toggleSelection(uri: String) {
+        val cur = _selection.value
+        _selection.value = if (uri in cur) cur - uri else cur + uri
     }
 
-    fun setSort(order: SortOrder) {
-        _state.value = _state.value.copy(sortBy = order)
-    }
+    fun clearSelection() { _selection.value = emptySet() }
 
-    fun clearMessage() {
-        _state.value = _state.value.copy(message = null)
-    }
+    fun selectAll() { _selection.value = _state.value.visible.map { it.uri }.toSet() }
 
-    fun delete(item: FylioFile, onDone: () -> Unit = {}) {
+    // -------------------------------------------------------------- importing
+
+    fun importUris(uris: List<Uri>) {
+        if (uris.isEmpty()) return
         viewModelScope.launch {
-            val ok = withContext(Dispatchers.IO) { FylioStore.delete(item.file) }
-            _state.value = _state.value.copy(
-                message = if (ok) "Deleted ${item.name}" else "Could not delete ${item.name}"
-            )
-            refresh()
-            onDone()
-        }
-    }
-
-    fun rename(item: FylioFile, newName: String) {
-        viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) { FylioStore.rename(item.file, newName) }
-            _state.value = _state.value.copy(
-                message = if (result != null) "Renamed to ${result.name}" else "Rename failed"
-            )
-            refresh()
-        }
-    }
-
-    /** Persists a new document produced by the scanner or a toolkit action. */
-    fun saveDocument(file: File, note: String? = null) {
-        refresh()
-        if (note != null) _state.value = _state.value.copy(message = note)
-    }
-
-    fun importIncoming(uri: Uri) {
-        viewModelScope.launch {
-            val ctx = getApplication<Application>()
-            val imported = withContext(Dispatchers.IO) {
-                runCatching {
-                    val name = queryDisplayName(ctx, uri) ?: "Imported_${System.currentTimeMillis()}"
-                    val bytes = ctx.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                        ?: return@runCatching null
-                    FylioStore.import(ctx, name, bytes)
-                }.getOrNull()
+            var count = 0
+            uris.forEach { uri ->
+                val item = repo.importUri(uri)
+                if (item != null) count++
             }
             _state.value = _state.value.copy(
-                message = if (imported != null) "Imported ${imported.name}" else "Import failed"
+                toast = if (count == 0) "Import failed" else "Added $count document(s)"
             )
-            refresh()
         }
     }
 
-    private fun queryDisplayName(ctx: android.content.Context, uri: Uri): String? =
-        runCatching {
-            ctx.contentResolver.query(uri, null, null, null, null)?.use { c ->
-                val idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                if (idx >= 0 && c.moveToFirst()) c.getString(idx) else null
-            }
-        }.getOrNull()
+    fun registerLocalFile(file: File, note: String? = null) {
+        viewModelScope.launch {
+            repo.registerLocal(file)
+            refreshLocal()
+            if (note != null) toast(note)
+            _state.value = _state.value.copy(toast = note ?: "Saved ${file.name}")
+        }
+    }
 
-    fun documentsByKind(kind: FileKind): List<FylioFile> =
-        _state.value.documents.filter { it.kind == kind }
+    // --------------------------------------------------------------- reading
+
+    fun openDocument(uri: String, pageCount: Int) {
+        viewModelScope.launch { repo.markOpened(uri, pageCount) }
+    }
+
+    fun saveProgress(uri: String, page: Int, pageCount: Int) {
+        viewModelScope.launch { repo.saveProgress(uri, page, pageCount) }
+    }
+
+    suspend fun byUri(uri: String): DocumentEntity? = repo.byUri(uri)
+
+    suspend fun materialize(entity: DocumentEntity): File? = repo.materialize(entity)
+
+    suspend fun isReachable(entity: DocumentEntity): Boolean = repo.isReachable(entity)
+
+    fun rename(entity: DocumentEntity, newName: String) {
+        viewModelScope.launch {
+            val ok = repo.rename(entity, newName)
+            toast(if (ok != null) "Renamed" else "Rename failed")
+        }
+    }
+
+    fun delete(entity: DocumentEntity) {
+        viewModelScope.launch {
+            val ok = repo.delete(entity)
+            refreshLocal()
+            toast(if (ok) "Deleted ${entity.name}" else "Could not delete")
+        }
+    }
+
+    fun deleteSelected() {
+        val uris = _selection.value
+        viewModelScope.launch {
+            var n = 0
+            uris.forEach { uri ->
+                repo.byUri(uri)?.let { if (repo.delete(it)) n++ }
+            }
+            clearSelection()
+            refreshLocal()
+            toast("Deleted $n document(s)")
+        }
+    }
+
+    fun favourite(entity: DocumentEntity, fav: Boolean) {
+        viewModelScope.launch { repo.setFavourite(entity.uri, fav) }
+    }
+
+    // ---------------------------------------------------------------- storage
+
+    fun syncIndex() {
+        viewModelScope.launch {
+            val withContextIO = withContext(Dispatchers.IO) { repo.allIndexed() }
+            var fixed = 0
+            withContextIO.forEach { entity ->
+                val reachable = repo.isReachable(entity)
+                if (!reachable) fixed++
+            }
+            if (fixed > 0) toast("$fixed document(s) no longer reachable")
+        }
+    }
 }

@@ -10,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.fylio.app.core.pdf.PdfEngine
 import com.fylio.app.ui.FylioApp
 import com.fylio.app.ui.FylioViewModel
 import com.fylio.app.ui.theme.FylioTheme
@@ -20,6 +21,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        PdfEngine.init(applicationContext)
         enableEdgeToEdge()
         incomingUri = intent?.incomingStream()
 
